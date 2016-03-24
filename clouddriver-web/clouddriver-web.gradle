@@ -1,0 +1,119 @@
+import org.apache.tools.ant.filters.ReplaceTokens
+
+plugins {
+  id 'nebula.provided-base' version '3.0.3' // if you want provided-base
+}
+
+apply plugin: 'java'
+apply plugin: 'nebula.ospackage'
+
+ext {
+  applicationName = "${rootProject.name}"
+  installPath = "/opt/bmc/spinnaker/$project.applicationName"
+  serviceInstallPath = "/opt/$project.applicationName"
+}
+
+configurations.all {
+  exclude group: 'javax.servlet', module: 'servlet-api'
+  exclude group: "org.slf4j", module: "slf4j-log4j12"
+  resolutionStrategy.force 'com.microsoft.rest:client-runtime:1.0.0-20160309.002843-19'
+}
+
+repositories {
+  maven { url "http://adxsnapshots.azurewebsites.net" }
+
+  // This is the Spinnaker bintray repository where different service artifact dependencies are fetched from
+  maven {
+    url 'https://dl.bintray.com/spinnaker/spinnaker'
+  }
+}
+
+dependencies {
+  // Add subproject dependencies here
+  compile project(':clouddriver-security')
+
+  provided spinnaker.dependency('groovy')
+
+  provided 'javax.ws.rs:jsr311-api:1.1.1'
+  provided spinnaker.dependency('bootActuator')
+  provided spinnaker.dependency('bootDataRest')
+  testCompile ("org.springframework.boot:spring-boot-starter-test")
+  //this brings in the jetty GzipFilter which boot will autoconfigure
+  runtime 'org.eclipse.jetty:jetty-servlets:9.2.11.v20150529'
+
+  // Example of Spinnaker service artifact dependency
+  provided 'com.netflix.spinnaker.clouddriver:clouddriver-web:1.108.0'
+}
+
+sourceSets {
+  main {
+    resources {
+      srcDir 'config'
+    }
+  }
+}
+
+jar {
+  doFirst {
+    exclude "${rootProject.name}.yml"
+  }
+}
+
+String toVers(String v) {
+  int idx = v.indexOf('-')
+  if (idx != -1) {
+    return v.substring(0, idx)
+  }
+  return v
+}
+
+ospackage {
+  packageName = "spinnaker-$project.applicationName-bmc"
+  version = toVers(project.version.toString())
+  release '4'
+
+  from(project.configurations.compile.fileCollection {dep -> true}.minus(project.configurations.provided.fileCollection {dep -> true}) + jar.outputs.files) {
+    into "$project.installPath/lib"
+  }
+
+  from('config') {
+    into "$project.installPath/config"
+  }
+
+  // installer scripts
+  preInstall file("${project.buildDir}/pkg_scripts/preInstall.sh")
+  postInstall file("${project.buildDir}/pkg_scripts/postInstall.sh")
+  preUninstall  file("${project.buildDir}/pkg_scripts/preUninstall.sh")
+  postUninstall file("${project.buildDir}/pkg_scripts/postUninstall.sh")
+}
+
+task preparePkgScripts(type: Copy) {
+  from('pkg_scripts') {
+    include 'postInstall.sh'
+    def replacements = [:]
+    replacements['INSTALLPATH_ESCAPED'] = "$project.installPath".replaceAll('/', '\\\\\\\\/') as String
+    replacements['INSTALLPATH'] = "$project.installPath" as String
+    replacements['APPNAME'] = "$project.applicationName" as String
+    replacements['SERVICE_INSTALLPATH'] = "$project.serviceInstallPath" as String
+    filter(ReplaceTokens, tokens: replacements, beginToken: '#', endToken: '#')
+  }
+  from('pkg_scripts') {
+    include 'postUninstall.sh'
+    def replacements = [:]
+    replacements['INSTALLPATH_ESCAPED'] = "$project.installPath".replaceAll('/', '\\\\/') as String
+    replacements['INSTALLPATH'] = "$project.installPath" as String
+    replacements['APPNAME'] = "$project.applicationName" as String
+    replacements['SERVICE_INSTALLPATH'] = "$project.serviceInstallPath" as String
+    filter(ReplaceTokens, tokens: replacements, beginToken: '#', endToken: '#')
+  }
+  from('pkg_scripts') {
+    include 'pre*.sh'
+    def replacements = [:]
+    replacements['APPNAME'] = "$project.applicationName" as String
+    filter(ReplaceTokens, tokens: replacements, beginToken: '#', endToken: '#')
+  }
+
+  into "${project.buildDir}/pkg_scripts"
+}
+
+buildDeb.dependsOn preparePkgScripts

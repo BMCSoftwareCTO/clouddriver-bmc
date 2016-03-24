@@ -1,0 +1,3 @@
+bmc:
+  feature1:
+    enabled: true

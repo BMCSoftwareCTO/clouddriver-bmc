@@ -1,0 +1,17 @@
+// Specify name of service
+rootProject.name="clouddriver"
+
+// Specify subprojects
+include 'clouddriver-web', 'clouddriver-security'
+
+def setBuildFile(project) {
+  project.buildFileName = "${project.name}.gradle"
+  project.children.each {
+    setBuildFile(it)
+  }
+}
+
+rootProject.children.each {
+  setBuildFile(it)
+}
+
