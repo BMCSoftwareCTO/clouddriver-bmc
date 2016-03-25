@@ -1,0 +1,14 @@
+plugins {
+  id 'nebula.provided-base' version '3.0.3' // if you want provided-base
+}
+
+repositories {
+   // This is the Spinnaker bintray repository where different service artifact dependencies are fetched from
+  maven {
+    url 'https://dl.bintray.com/spinnaker/spinnaker'
+  }
+}
+
+dependencies {
+  provided 'com.netflix.spinnaker.clouddriver:clouddriver-aws:1.108.0'
+}

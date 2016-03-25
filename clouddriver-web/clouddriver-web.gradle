@@ -30,7 +30,7 @@ repositories {
 
 dependencies {
   // Add subproject dependencies here
-  compile project(':clouddriver-security')
+  compile project(':clouddriver-aws')
 
   provided spinnaker.dependency('groovy')
 
