@@ -1,6 +1,6 @@
 FROM java:8
 
-MAINTAINER delivery-engineering@netflix.com
+MAINTAINER galapagos-dev@bmc.com
 
 COPY . workdir/
 
