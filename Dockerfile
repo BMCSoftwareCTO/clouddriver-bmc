@@ -2,7 +2,7 @@ FROM java:8
 
 MAINTAINER delivery-engineering@netflix.com
 
-COPY ../ workdir/
+COPY . workdir/
 
 WORKDIR workdir
 
